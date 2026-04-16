@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Stock Intelligence Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; height: 100vh; background: #f0f2f5; }
+        .sidebar { width: 250px; background: #2c3e50; color: white; padding: 20px; }
+        .main-content { flex: 1; padding: 40px; overflow-y: auto; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button { width: 100%; padding: 12px; margin: 8px 0; border: none; border-radius: 5px; cursor: pointer; background: #34495e; color: white; transition: 0.3s; }
+        button:hover { background: #1abc9c; }
+        h1 { color: #2c3e50; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Stocks</h2>
+        <div id="buttons"></div>
+    </div>
+    <div class="main-content">
+        <h1>Market Analysis Dashboard</h1>
+        <div class="card">
+            <h3 id="stock-name">Select a stock to view trend</h3>
+            <canvas id="stockChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let chart;
+        const apiBase = "http://127.0.0.1:8000";
+
+        async function init() {
+            try {
+                const res = await fetch(`${apiBase}/companies`);
+                const data = await res.json();
+                const btnContainer = document.getElementById('buttons');
+                data.available_companies.forEach(symbol => {
+                    const btn = document.createElement('button');
+                    btn.innerText = symbol;
+                    btn.onclick = () => updateChart(symbol);
+                    btnContainer.appendChild(btn);
+                });
+            } catch (err) { console.error("Error loading companies:", err); }
+        }
+
+        async function updateChart(symbol) {
+            try {
+                const res = await fetch(`${apiBase}/data/${symbol}`);
+                const stockData = await res.json();
+                
+                if (!stockData || stockData.length === 0) {
+                    alert("No data found for " + symbol);
+                    return;
+                }
+
+                document.getElementById('stock-name').innerText = `30-Day Performance: ${symbol}`;
+                
+                // Naya format check: Date aur Close values
+                const labels = stockData.map(d => {
+                    let dateVal = d.Date;
+                    return new Date(dateVal).toLocaleDateString();
+                });
+                const prices = stockData.map(d => d.Close);
+
+                if (chart) chart.destroy();
+                
+                const ctx = document.getElementById('stockChart').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Closing Price (INR)',
+                            data: prices,
+                            borderColor: '#1abc9c',
+                            borderWidth: 2,
+                            pointRadius: 2,
+                            tension: 0.2,
+                            fill: true,
+                            backgroundColor: 'rgba(26, 188, 156, 0.1)'
+                        }]
+                    },
+                    options: { responsive: true, scales: { y: { beginAtZero: false } } }
+                });
+            } catch (err) {
+                console.error("Error updating chart:", err);
+                alert("Check terminal for backend error.");
+            }
+        }
+        init();
+    </script>
+</body>
+</html>
